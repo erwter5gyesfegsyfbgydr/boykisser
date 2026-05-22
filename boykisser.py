@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 
 PURPLE = "\033[38;2;179;102;255m"
 RESET = "\033[0m"
+b = "\033[1m"
+under = "\033[4m"
 
 def clear_console():
     os.system("cls" if os.name == "nt" else "clear")
@@ -133,9 +135,14 @@ def parse_mysmsbox(phone_number, headers):
         return None
 
 def main():
-    clear_console()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
-    banner = f"""{PURPLE}
+    while True:
+        clear_console()
+
+        banner = f"""{PURPLE}
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⠛⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠛⢠⡀⠸⣆⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -154,95 +161,100 @@ def main():
 ⠀⠀⠀⠀⠀⠀⠈⠳⣄⠀⢿⣧⠀⠀⠘⠷⠾⠷⣼⣅⣀⣀⠀⠀⠀⠀⠀⠀⠸⡅⠀⠀⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠏⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠘⢧⡈⡿⣄⣀⣀⣀⣀⣀⣀⣈⣳⣍⠉⠉⠛⢿⡛⢦⡼⠛⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⠻⠶⠿⠿⠷⠷⠿⠿⠾⠶⠶⠶⠶⠿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-                               Dev -> @BrutXray
-                               Version -> Alpha 0.0.1
-{RESET}
+
+          ┌──────────────────────────────────────┐
+          │ {RESET}{b}{under}info / информация{RESET}{PURPLE}                    │
+          │ Dev -> @BrutXray                     │
+          │ Version -> Alpha 0.0.1               │
+          │ Channel -> t.me/boykissersoftware    │
+          └──────────────────────────────────────┘{RESET}
     """
-    print(banner)
-
-    phone_number = input("enter phone >> ").strip()
-    if not phone_number:
-        print("Номер не может быть пустым.")
-        return
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
-    print(f"\nЗагрузка данных для номера {phone_number}...")
     
-    scam_data = parse_getscam(phone_number, headers)
-    reviews_data = parse_reviews_site(phone_number, headers)
-    smsbox_data = parse_mysmsbox(phone_number, headers)
+        print(banner)
 
-    if not scam_data and not reviews_data and not smsbox_data:
-        print("Информация по номеру не найдена ни на одном из сайтов.")
-        input("\nНажмите Enter для очистки...")
-        clear_console()
-        return
-
-    total_lines = 0
-    if scam_data:
-        total_lines += len(scam_data)
-    if reviews_data:
-        for r in reviews_data:
-            total_lines += 2 if r['text'] else 1
-    if smsbox_data:
-        if "categories" in smsbox_data: total_lines += 1
-        if "rating" in smsbox_data: total_lines += 1
-        if "comments" in smsbox_data: total_lines += 1 + len(smsbox_data["comments"])
-
-    current_step = 0
-
-    print(f"\n{PURPLE}--- Результаты с getscam.com ---{RESET}")
-    if scam_data:
-        for field, value in scam_data:
-            color = get_gradient_color(current_step, total_lines)
-            separator = ":" if field == "Тип" else " ->"
-            print(f"{color}[+] {field}{separator} {value}{RESET}")
-            current_step += 1
-    else:
-        print("Нет данных на этом сайте.")
-
-    print(f"\n{PURPLE}--- Результаты с кто-звонил.рф ---{RESET}")
-    if reviews_data:
-        for review in reviews_data:
-            color = get_gradient_color(current_step, total_lines)
-            print(f"{color}[+] Отзыв ({review['date']}) | Автор: {review['name']} -> Категория: {review['badge']}{RESET}")
-            current_step += 1
-            
-            if review['text']:
-                color = get_gradient_color(current_step, total_lines)
-                print(f"{color}    Текст: {review['text']}{RESET}")
-                current_step += 1
-    else:
-        print("Отзывы на этом сайте не найдены.")
-
-    print(f"\n{PURPLE}--- Результаты с mysmsbox.ru ---{RESET}")
-    if smsbox_data:
-        if "categories" in smsbox_data:
-            color = get_gradient_color(current_step, total_lines)
-            print(f"{color}[+] Вероятная категория звонка -> {smsbox_data['categories']}{RESET}")
-            current_step += 1
+        phone_number = input("enter phone (или 'exit' для выхода) >> ").strip()
         
-        if "rating" in smsbox_data:
-            color = get_gradient_color(current_step, total_lines)
-            print(f"{color}[+] Вердикт -> {smsbox_data['rating']}{RESET}")
-            current_step += 1
+        if phone_number.lower() in ['exit', 'quit', 'выход']:
+            print("Выход из программы...")
+            break
             
-        if "comments" in smsbox_data:
-            color = get_gradient_color(current_step, total_lines)
-            print(f"{color}[+] Отзывы пользователей:{RESET}")
-            current_step += 1
-            for comment in smsbox_data["comments"]:
-                color = get_gradient_color(current_step, total_lines)
-                print(f"{color}    - {comment}{RESET}")
-                current_step += 1
-    else:
-        print("Нет данных на этом сайте.")
+        if not phone_number:
+            print("Номер не может быть пустым.")
+            input("\nНажмите Enter для продолжения...")
+            continue
 
-    input(f"\n\n{PURPLE}Нажмите Enter для очистки консоли...{RESET}")
-    clear_console()
+        print(f"\nЗагрузка данных для номера {phone_number}...")
+        
+        scam_data = parse_getscam(phone_number, headers)
+        reviews_data = parse_reviews_site(phone_number, headers)
+        smsbox_data = parse_mysmsbox(phone_number, headers)
+
+        if not scam_data and not reviews_data and not smsbox_data:
+            print("Информация по номеру не найдена ни на одном из сайтов.")
+            input("\nНажмите Enter для очистки и возврата в меню...")
+            continue
+
+        total_lines = 0
+        if scam_data:
+            total_lines += len(scam_data)
+        if reviews_data:
+            for r in reviews_data:
+                total_lines += 2 if r['text'] else 1
+        if smsbox_data:
+            if "categories" in smsbox_data: total_lines += 1
+            if "rating" in smsbox_data: total_lines += 1
+            if "comments" in smsbox_data: total_lines += 1 + len(smsbox_data["comments"])
+
+        current_step = 0
+
+        print(f"\n{PURPLE}--- Результаты с getscam.com ---{RESET}")
+        if scam_data:
+            for field, value in scam_data:
+                color = get_gradient_color(current_step, total_lines)
+                separator = ":" if field == "Тип" else " ->"
+                print(f"{color}[+] {field}{separator} {value}{RESET}")
+                current_step += 1
+        else:
+            print("Нет данных на этом сайте.")
+
+        print(f"\n{PURPLE}--- Результаты с кто-звонил.рф ---{RESET}")
+        if reviews_data:
+            for review in reviews_data:
+                color = get_gradient_color(current_step, total_lines)
+                print(f"{color}[+] Отзыв ({review['date']}) | Автор: {review['name']} -> Категория: {review['badge']}{RESET}")
+                current_step += 1
+                
+                if review['text']:
+                    color = get_gradient_color(current_step, total_lines)
+                    print(f"{color}    Текст: {review['text']}{RESET}")
+                    current_step += 1
+        else:
+            print("Отзывы на этом сайте не найдены.")
+
+        print(f"\n{PURPLE}--- Результаты с mysmsbox.ru ---{RESET}")
+        if smsbox_data:
+            if "categories" in smsbox_data:
+                color = get_gradient_color(current_step, total_lines)
+                print(f"{color}[+] Вероятная категория звонка -> {smsbox_data['categories']}{RESET}")
+                current_step += 1
+            
+            if "rating" in smsbox_data:
+                color = get_gradient_color(current_step, total_lines)
+                print(f"{color}[+] Вердикт -> {smsbox_data['rating']}{RESET}")
+                current_step += 1
+                
+            if "comments" in smsbox_data:
+                color = get_gradient_color(current_step, total_lines)
+                print(f"{color}[+] Отзывы пользователей:{RESET}")
+                current_step += 1
+                for comment in smsbox_data["comments"]:
+                    color = get_gradient_color(current_step, total_lines)
+                    print(f"{color}    - {comment}{RESET}")
+                    current_step += 1
+        else:
+            print("Нет данных на этом сайте.")
+
+        input(f"\n\n{PURPLE}Нажмите Enter для очистки консоли и возврата в меню...{RESET}")
 
 if __name__ == "__main__":
     main()

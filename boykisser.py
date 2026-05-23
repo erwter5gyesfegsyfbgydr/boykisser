@@ -320,7 +320,7 @@ def main():
 
           ┌──────────────────────────────────────┐
           │ {RESET}{b}{under}info / информация{RESET}{PURPLE}                    │
-          │ Dev -> @BrutXray                     │
+          │ Dev -> @BrutXray & @waruma           │
           │ Version -> alpha 0.0.1               │
           │ Channel -> t.me/boykissersoftware    │
           └──────────────────────────────────────┘{RESET}

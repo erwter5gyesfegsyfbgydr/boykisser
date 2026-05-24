@@ -133,7 +133,17 @@ def parse_whatsapp(phone_number, headers):
     except Exception:
         return False
 
-def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, whatsapp_exists):
+def parse_leakcheck(phone_number, headers):
+    url = f"https://leakcheck.io/api/public?check={phone_number}"
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception:
+        return None
+
+def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data):
     scam_html = ""
     if scam_data:
         for field, value in scam_data:
@@ -172,6 +182,29 @@ def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, wha
     whatsapp_status = "Зарегистрирован" if whatsapp_exists else "Не зарегистрирован"
     whatsapp_html = f'<div class="data-line"><span class="label">Статус:</span> <span class="value">{whatsapp_status}</span></div>'
 
+    leakcheck_html = ""
+    if leakcheck_data and leakcheck_data.get("success"):
+        sources = leakcheck_data.get("sources", [])
+        found_databases_count = len(sources)
+        leakcheck_html += f'<div class="data-line" style="margin-bottom: 15px;"><span class="label">Всего найдено баз с утечками:</span> <span class="value" style="color: #bb86fc; font-weight: bold;">{found_databases_count}</span></div>'
+        
+        if sources:
+            leakcheck_html += '<div class="label" style="margin-bottom: 8px; font-weight: bold;">Источники (База и Дата):</div>'
+            for src in sources:
+                name = src.get("name", "Неизвестно")
+                date = src.get("date", "Не указана")
+                if not date:
+                    date = "Не указана"
+                leakcheck_html += f"""
+                <div class="data-line" style="margin-bottom: 6px; padding-left: 10px; border-left: 2px solid #9b51e0;">
+                    <span class="label">База:</span> <span class="value">{name}</span> | <span class="label">Дата:</span> <span class="value">{date}</span>
+                </div>
+                """
+        else:
+            leakcheck_html += '<div class="data-line"><span class="value">Конкретные источники не указаны.</span></div>'
+    else:
+        leakcheck_html = '<div class="data-line"><span class="value">Данные в базах утечек не обнаружены или ошибка API.</span></div>'
+
     html_template = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -190,7 +223,7 @@ def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, wha
             align-items: center;
         }}
         .container {{
-            max-width: 800px;
+            max-width: 1000px;
             width: 100%;
         }}
         h1 {{
@@ -204,26 +237,15 @@ def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, wha
             color: #9b51e0;
             font-weight: bold;
         }}
-        .columns-container {{
-            font-size: 0;
+        /* Динамическая блочная сетка типа 'Плитка' без пробелов по вертикали */
+        .masonry-wrapper {{
+            column-count: 2;
+            column-gap: 20px;
             width: 100%;
         }}
-        .column {{
-            display: inline-block;
-            width: 48%;
-            vertical-align: top;
-            font-size: 14px;
-        }}
-        .column-left {{
-            margin-right: 4%;
-        }}
-        @media (max-width: 600px) {{
-            .column {{
-                display: block;
-                width: 100%;
-            }}
-            .column-left {{
-                margin-right: 0;
+        @media (max-width: 768px) {{
+            .masonry-wrapper {{
+                column-count: 1;
             }}
         }}
         .source-block {{
@@ -231,8 +253,12 @@ def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, wha
             border: 2px solid #9b51e0;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 15px rgba(155, 81, 224, 0.1);
+            box-shadow: 0 4px 15px rgba(155, 81, 224, 0.05);
             margin-bottom: 20px;
+            break-inside: avoid; /* Запрещает разрывать блок между колонками */
+            display: inline-block;
+            width: 100%;
+            box-sizing: border-box;
         }}
         .source-title {{
             color: #bb86fc;
@@ -261,26 +287,26 @@ def generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, wha
 <body>
     <div class="container">
         <h1>Сводный отчет по номеру: <span class="phone-number">{phone_number}</span></h1>
-        <div class="columns-container">
-            <div class="column column-left">
-                <div class="source-block">
-                    <div class="source-title">getscam.com</div>
-                    {scam_html}
-                </div>
-                <div class="source-block">
-                    <div class="source-title">mysmsbox.ru</div>
-                    {smsbox_html}
-                </div>
+        <div class="masonry-wrapper">
+            <div class="source-block">
+                <div class="source-title">getscam.com</div>
+                {scam_html}
             </div>
-            <div class="column">
-                <div class="source-block">
-                    <div class="source-title">кто-звонил.рф</div>
-                    {reviews_html}
-                </div>
-                <div class="source-block">
-                    <div class="source-title">WhatsApp</div>
-                    {whatsapp_html}
-                </div>
+            <div class="source-block">
+                <div class="source-title">mysmsbox.ru</div>
+                {smsbox_html}
+            </div>
+            <div class="source-block">
+                <div class="source-title">кто-звонил.рф</div>
+                {reviews_html}
+            </div>
+            <div class="source-block">
+                <div class="source-title">WhatsApp</div>
+                {whatsapp_html}
+            </div>
+            <div class="source-block">
+                <div class="source-title">leakcheck.io</div>
+                {leakcheck_html}
             </div>
         </div>
     </div>
@@ -321,7 +347,7 @@ def main():
           ┌──────────────────────────────────────┐
           │ {RESET}{b}{under}info / информация{RESET}{PURPLE}                    │
           │ Dev -> @BrutXray & @waruma           │
-          │ Version -> alpha 0.0.1               │
+          │ Version -> alpha 0.0.2               │
           │ Channel -> t.me/boykissersoftware    │
           └──────────────────────────────────────┘{RESET}
     """
@@ -347,8 +373,11 @@ def main():
         reviews_data = parse_reviews_site(phone_number, headers)
         smsbox_data = parse_mysmsbox(phone_number, headers)
         whatsapp_exists = parse_whatsapp(phone_number, headers)
+        leakcheck_data = parse_leakcheck(phone_number, headers)
 
-        html_content = generate_html_report(phone_number, scam_data, reviews_data, smsbox_data, whatsapp_exists)
+        html_content = generate_html_report(
+            phone_number, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data
+        )
         
         safe_filename = re.sub(r'[^\w\s-]', '', phone_number).replace(' ', '_')
         if not safe_filename:

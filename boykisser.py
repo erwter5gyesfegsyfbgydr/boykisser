@@ -244,7 +244,59 @@ def parse_leakcheck(phone_number, headers):
     except Exception:
         return None
 
-def generate_html_report(phone_number, htmlweb_data, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data):
+def parse_ruzvonok(phone_number, headers):
+    phone = ''.join(filter(str.isdigit, phone_number))
+    if phone.startswith('8'):
+        phone = '7' + phone[1:]
+    if not phone.startswith('7'):
+        phone = '7' + phone
+    url = f"https://ruzvonok.com/phone/{phone}"
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        result = {"h1": "", "reviews": []}
+
+        h1 = soup.find('h1', itemprop="name")
+        if h1:
+            result["h1"] = h1.get_text(strip=True, separator=" ")
+
+        reviews = soup.find_all('div', class_="reviewitem")
+        for review in reviews:
+            meta = review.find('div', class_="reviewitem__metainfo")
+            
+            classification = ""
+            if meta:
+                class_span = meta.find('span', itemprop="name")
+                if class_span:
+                    text = class_span.get_text(strip=True)
+                    if ':' in text:
+                        classification = text.split(':', 1)[1].strip()
+                    else:
+                        classification = text
+
+            date = meta.find('span', class_="reviewitem__date").get_text(strip=True) if meta and meta.find('span', class_="reviewitem__date") else ""
+            rating = meta.find('span', itemprop="ratingValue").get_text(strip=True) if meta and meta.find('span', itemprop="ratingValue") else ""
+            best = meta.find('span', itemprop="bestRating").get_text(strip=True) if meta and meta.find('span', itemprop="bestRating") else ""
+
+            author = review.find('span', itemprop="author").get_text(strip=True) if review.find('span', itemprop="author") else "Аноним"
+            text = review.find('span', itemprop="reviewBody").get_text(strip=True) if review.find('span', itemprop="reviewBody") else ""
+
+            result["reviews"].append({
+                "author": author,
+                "classification": classification,
+                "date": date,
+                "rating": f"{rating}/{best}" if rating and best else "",
+                "text": text
+            })
+
+        return result
+    except Exception:
+        return None
+
+def generate_html_report(phone_number, htmlweb_data, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data, ruzvonok_data):
     htmlweb_html = ""
     if htmlweb_data:
         country = htmlweb_data.get("country", {})
@@ -328,6 +380,27 @@ def generate_html_report(phone_number, htmlweb_data, scam_data, reviews_data, sm
             leakcheck_html += '<div class="data-line"><span class="value">Конкретные источники не указаны.</span></div>'
     else:
         leakcheck_html = '<div class="data-line"><span class="value">Данные в базах утечек не обнаружены или ошибка API.</span></div>'
+
+    ruzvonok_html = ""
+    if ruzvonok_data:
+        if ruzvonok_data.get("h1"):
+            ruzvonok_html += f'<div class="data-line"><span class="label">Основная информация:</span> <span class="value">{ruzvonok_data["h1"]}</span></div>'
+        
+        if ruzvonok_data.get("reviews"):
+            ruzvonok_html += '<div class="data-line"><span class="label" style="font-weight:bold;">Отзывы:</span></div>'
+            for r in ruzvonok_data["reviews"]:
+                rating_str = f" | Оценка: {r['rating']}" if r['rating'] else ""
+                ruzvonok_html += f"""
+                <div class="data-line" style="margin-bottom: 12px; border-bottom: 1px solid #2a2a2a; padding-bottom: 8px; padding-left: 10px;">
+                    <span class="label">Автор:</span> <span class="value">{r['author']} ({r['date']}{rating_str})</span><br>
+                    <span class="label">Категория:</span> <span class="value">{r['classification']}</span><br>
+                    <span class="label">Текст:</span> <span class="value">{r['text']}</span>
+                </div>
+                """
+        else:
+            ruzvonok_html += '<div class="data-line"><span class="value">Отзывы не найдены.</span></div>'
+    else:
+        ruzvonok_html = '<div class="data-line"><span class="value">Нет данных на этом сайте.</span></div>'
 
     html_template = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -428,6 +501,10 @@ def generate_html_report(phone_number, htmlweb_data, scam_data, reviews_data, sm
                 {reviews_html}
             </div>
             <div class="source-block">
+                <div class="source-title">ruzvonok.com</div>
+                {ruzvonok_html}
+            </div>
+            <div class="source-block">
                 <div class="source-title">WhatsApp</div>
                 {whatsapp_html}
             </div>
@@ -502,9 +579,10 @@ def main():
         smsbox_data = parse_mysmsbox(phone_number, headers)
         whatsapp_exists = parse_whatsapp(phone_number, headers)
         leakcheck_data = parse_leakcheck(phone_number, headers)
+        ruzvonok_data = parse_ruzvonok(phone_number, headers)
 
         html_content = generate_html_report(
-            phone_number, htmlweb_data, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data
+            phone_number, htmlweb_data, scam_data, reviews_data, smsbox_data, whatsapp_exists, leakcheck_data, ruzvonok_data
         )
 
         safe_filename = re.sub(r'[^\w\s-]', '', phone_number).replace(' ', '_')

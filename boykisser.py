@@ -551,7 +551,7 @@ def main():
           ┌──────────────────────────────────────┐
           │ {RESET}{b}{under}info / информация{RESET}{PURPLE}                    │
           │ Dev -> @BrutXray & @waruma           │
-          │ Version -> alpha 0.0.4               │
+          │ Version -> alpha 0.0.5               │
           │ Channel -> t.me/BoykisserLinks       │
           └──────────────────────────────────────┘{RESET}
     """
